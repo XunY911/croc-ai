@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Croc'Ai Premium</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #00B36B; /* Vert Uber Eats */
+            --primary-dark: #009157;
+            --bg: #F8F9FA;
+            --card-bg: #FFFFFF;
+            --text: #1A1A1A;
+            --text-light: #6c757d;
+            --shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 0;
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 480px;
+            background: var(--bg);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding-bottom: 40px;
+        }
+
+        /* HEADER */
+        header {
+            padding: 20px 25px;
+            background: var(--card-bg);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* CONTENU */
+        .main-content {
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        h1 { font-size: 26px; font-weight: 800; margin: 0; color: #2D3436; }
+        .subtitle { color: var(--text-light); font-size: 15px; margin-top: 5px; font-weight: 600; }
+
+        /* ZONE SAISIE */
+        textarea {
+            width: 100%;
+            height: 110px;
+            border: none;
+            padding: 20px;
+            border-radius: 18px;
+            font-family: inherit;
+            font-size: 16px;
+            resize: none;
+            outline: none;
+            background: white;
+            box-shadow: var(--shadow);
+            color: var(--text);
+            transition: 0.3s;
+        }
+        textarea:focus { box-shadow: 0 0 0 2px var(--primary); }
+
+        /* BOUTON */
+        .btn-main {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 18px;
+            border-radius: 18px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 10px 20px rgba(0, 179, 107, 0.25);
+            transition: 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+        }
+        .btn-main:active { transform: scale(0.98); }
+        .btn-main:disabled { opacity: 0.7; cursor: wait; background: #ccc; box-shadow: none; }
+
+        /* LOADER */
+        .loader-container { display: none; text-align: center; margin: 30px 0; }
+        .spinner {
+            width: 40px; height: 40px; border: 4px solid #ddd;
+            border-top-color: var(--primary); border-radius: 50%;
+            animation: spin 1s infinite linear; margin: 0 auto 10px;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* CARTE RECETTE */
+        #result { display: none; }
+
+        .recipe-card {
+            background: white;
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            margin-top: 10px;
+            animation: slideUp 0.5s ease-out;
+        }
+        @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        .image-container {
+            height: 220px;
+            background: #eee;
+            overflow: hidden;
+            position: relative;
+        }
+        .recipe-image {
+            width: 100%; height: 100%; object-fit: cover;
+            opacity: 0; transition: opacity 0.5s;
+        }
+        .recipe-image.loaded { opacity: 1; }
+
+        .recipe-content { padding: 25px; }
+
+        .recipe-title { font-size: 24px; font-weight: 800; margin: 0 0 10px 0; color: #2D3436; line-height: 1.2; }
+        .recipe-desc { color: #666; font-size: 15px; margin-bottom: 20px; line-height: 1.5; }
+
+        /* TAGS (Temps / Calories) */
+        .tags { display: flex; gap: 12px; margin-bottom: 25px; }
+        .tag {
+            background: #E8F8F2; color: var(--primary-dark);
+            padding: 8px 14px; border-radius: 30px;
+            font-size: 13px; font-weight: 700;
+            display: flex; align-items: center; gap: 6px;
+        }
+
+        /* SECTION TITLES */
+        .section-title {
+            font-size: 18px; font-weight: 800; margin: 30px 0 15px 0;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .section-title::before { content: ''; display: block; width: 4px; height: 18px; background: var(--primary); border-radius: 4px; }
+
+        /* LISTE INGRÉDIENTS (CHECKBOX STYLE) */
+        .ingredient-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px; border-bottom: 1px solid #f0f0f0;
+            font-size: 15px; color: #444; font-weight: 600;
+        }
+        .check-circle {
+            width: 20px; height: 20px; border: 2px solid var(--primary);
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+        }
+        .check-circle::after { content: '✔'; font-size: 12px; color: var(--primary); opacity: 0; }
+        /* Simulation de coche */
+        .ingredient-item:active .check-circle::after { opacity: 1; }
+
+        /* ÉTAPES */
+        .step-item { display: flex; gap: 15px; margin-bottom: 20px; }
+        .step-num {
+            background: var(--primary); color: white;
+            width: 28px; height: 28px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 14px; flex-shrink: 0; margin-top: 2px;
+        }
+        .step-text { font-size: 16px; line-height: 1.6; color: #555; }
+
+        /* Cascade Animation */
+        .fade-in { opacity: 0; animation: fadeIn 0.5s forwards; }
+        @keyframes fadeIn { to { opacity: 1; } }
+
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <header>
+        <div class="logo">🥦 Croc'Ai</div>
+    </header>
+
+    <div class="main-content">
+        <div>
+            <h1>Salut Chef ! 👋</h1>
+            <div class="subtitle">Dis-moi ce qu'il te reste, je te fais un menu.</div>
+        </div>
+
+        <textarea id="ingredients" placeholder="Ex: 2 oeufs, du riz, un reste de poulet, un peu de crème..."></textarea>
+        
+        <button class="btn-main" onclick="chercherRecette()" id="btnSearch">
+            <span>Trouver une idée</span> <span>🍳</span>
+        </button>
+
+        <div class="loader-container" id="loader">
+            <div class="spinner"></div>
+            <p style="color:#888; font-size:14px;">Le chef calcule les quantités...</p>
+        </div>
+
+        <div id="result">
+            <div class="recipe-card">
+                <div class="image-container">
+                    <img id="recipeImg" class="recipe-image" src="" alt="Plat">
+                </div>
+                
+                <div class="recipe-content">
+                    <h2 class="recipe-title" id="titreRecette">Titre</h2>
+                    <p class="recipe-desc" id="descRecette">Description</p>
+                    
+                    <div class="tags">
+                        <div class="tag">⏰ <span id="tempsTotal">-- min</span></div>
+                        <div class="tag">🔥 <span id="calories">-- kcal</span></div>
+                    </div>
+
+                    <div class="section-title">Ingrédients (2 pers.)</div>
+                    <div id="listeIngredients"></div>
+
+                    <div class="section-title">Préparation</div>
+                    <div id="listeEtapes"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function chercherRecette() {
+        const ingredients = document.getElementById('ingredients').value;
+        const btn = document.getElementById('btnSearch');
+        const loader = document.getElementById('loader');
+        const resultDiv = document.getElementById('result');
+
+        if (!ingredients) return alert("Ajoute au moins un ingrédient !");
+
+        // UI Loading
+        btn.disabled = true;
+        btn.innerHTML = "Réflexion en cours...";
+        loader.style.display = "block";
+        resultDiv.style.display = "none";
+        
+        // Reset Image
+        const imgElement = document.getElementById('recipeImg');
+        imgElement.classList.remove('loaded');
+        imgElement.src = "";
+
+        try {
+            const response = await fetch('/api/recette', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ingredients: ingredients })
+            });
+
+            const data = await response.json();
+            if (data.error) throw new Error(data.error);
+
+            // Remplissage
+            document.getElementById('titreRecette').innerText = data.titre;
+            document.getElementById('descRecette').innerText = data.description || "Bon appétit !";
+            document.getElementById('tempsTotal').innerText = data.temps_preparation;
+            document.getElementById('calories').innerText = (data.calories_estimees || "???") + " kcal";
+
+            // IMAGE INTELLIGENTE
+            const searchKeyword = encodeURIComponent(data.titre.split(' ')[0] + ",food");
+            imgElement.src = `https://loremflickr.com/800/600/${searchKeyword}/all`;
+            imgElement.onload = function() { this.classList.add('loaded'); };
+
+            // INGRÉDIENTS PRÉCIS
+            const divIngredients = document.getElementById('listeIngredients');
+            divIngredients.innerHTML = "";
+            const listeFinale = data.ingredients_detailles || [];
+            
+            listeFinale.forEach((item, index) => {
+                divIngredients.innerHTML += `
+                <div class="ingredient-item fade-in" style="animation-delay: ${index * 0.1}s">
+                    <div class="check-circle"></div>
+                    <div>${item}</div>
+                </div>`;
+            });
+
+            // ÉTAPES
+            const divEtapes = document.getElementById('listeEtapes');
+            divEtapes.innerHTML = "";
+            (data.etapes || []).forEach((step, index) => {
+                divEtapes.innerHTML += `
+                <div class="step-item fade-in" style="animation-delay: ${0.3 + (index * 0.1)}s">
+                    <div class="step-num">${index + 1}</div>
+                    <div class="step-text">${step}</div>
+                </div>`;
+            });
+
+            resultDiv.style.display = "block";
+            setTimeout(() => {
+                 resultDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+
+        } catch (err) {
+            alert("Erreur : " + err.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = "<span>Trouver une idée</span> <span>🍳</span>";
+            loader.style.display = "none";
+        }
+    }
+</script>
+
+</body>
+</html>
