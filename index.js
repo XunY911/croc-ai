@@ -6,14 +6,13 @@ const path = require('path');
 
 // --- INITIALISATION DU SERVEUR ---
 const app = express();
-app.use(cors());       // Autorise l'app mobile/web
-app.use(express.json()); // Autorise la lecture des données envoyées
-app.use(express.static(path.join(__dirname, 'public'))); // Sert le fichier HTML
+app.use(cors());       
+// ✨ CHANGEMENT 1 : On autorise les gros fichiers (jusqu'à 10 Mo) pour laisser passer les photos !
+app.use(express.json({ limit: '10mb' })); 
+app.use(express.static(path.join(__dirname, 'public'))); 
 
-// Au lieu de la clé en dur, on dit au serveur : "Va chercher la clé dans le coffre-fort (Variables d'environnement)"
 const MA_CLE_API = process.env.VENICE_API_KEY; 
 
-// Si la clé n'est pas trouvée (par exemple en local sans configuration), on prévient
 if (!MA_CLE_API) {
   console.error("⚠️ ERREUR : Pas de clé API trouvée !");
 }
@@ -23,7 +22,6 @@ const openai = new OpenAI({
   apiKey: MA_CLE_API,
 });
 
-// --- OUTIL DE NETTOYAGE (LE CHIRURGIEN) ---
 function nettoyerEtParserJSON(texteBrut) {
   const debut = texteBrut.indexOf('{');
   const fin = texteBrut.lastIndexOf('}');
@@ -31,28 +29,42 @@ function nettoyerEtParserJSON(texteBrut) {
   if (debut === -1 || fin === -1) {
     throw new Error("L'IA n'a pas renvoyé de format JSON valide.");
   }
-
   const jsonPropre = texteBrut.substring(debut, fin + 1);
   return JSON.parse(jsonPropre);
 }
 
-// --- LA LOGIQUE DU CHEF (VERSION PRÉCISE) ---
-async function genererRecette(ingredients) {
-  console.log(`🍳 Croc'Ai réfléchit pour : ${ingredients}...`);
+// ✨ CHANGEMENT 2 : La fonction accepte maintenant une image (en Base64)
+async function genererRecette(ingredients, imageBase64) {
+  console.log(`🍳 Croc'Ai réfléchit... Image reçue : ${imageBase64 ? "OUI 📸" : "NON 📝"}`);
 
   try {
+    // Si on a une image, on utilise le modèle Llama Vision. Sinon on garde ton super modèle texte.
+    const nomDuModele = imageBase64 ? "llama-3.2-11b-vision" : "llama-3.3-70b";
+
+    // ✨ CHANGEMENT 3 : On prépare le message. Si y'a une image, on la met dans un format spécial.
+    let userMessage;
+    if (imageBase64) {
+      userMessage = [
+        { type: "text", text: `Voici ce que j'ai : ${ingredients || "Rien de précisé, regarde la photo et déduis les ingrédients."}` },
+        { type: "image_url", image_url: { url: `data:image/jpeg;base64,${imageBase64}` } } // C'est ici qu'on donne les yeux à l'IA
+      ];
+    } else {
+      userMessage = `Voici ce que j'ai : ${ingredients}`;
+    }
+
     const completion = await openai.chat.completions.create({
-      model: "llama-3.3-70b", // Très bon modèle pour suivre des instructions complexes
+      model: nomDuModele, 
       messages: [
         {
           role: "system",
           content: `Tu es un chef étoilé Michelin expert en cuisine du quotidien.
-          Ta mission : Créer une recette DÉLICIEUSE et PRÉCISE pour 2 personnes à partir des ingrédients donnés.
+          Ta mission : Créer une recette DÉLICIEUSE et PRÉCISE pour 2 personnes à partir des ingrédients donnés ou visibles sur l'image.
           
           RÈGLES IMPÉRATIVES :
-          1. Tu DOIS inventer des quantités précises (grammes, ml, nombre) pour CHAQUE ingrédient. Ne dis pas juste "du riz", dis "150g de riz".
-          2. Tu peux ajouter des ingrédients de base (sel, poivre, huile, eau, beurre, épices simples) si nécessaire pour le goût.
-          3. Réponds UNIQUEMENT avec un JSON strict.
+          1. Identifie les ingrédients sur la photo si elle est fournie.
+          2. Tu DOIS inventer des quantités précises (grammes, ml, nombre) pour CHAQUE ingrédient.
+          3. Tu peux ajouter des ingrédients de base (sel, poivre, huile, eau, beurre, épices simples) si nécessaire pour le goût.
+          4. Réponds UNIQUEMENT avec un JSON strict.
 
           Structure JSON attendue :
           {
@@ -65,9 +77,7 @@ async function genererRecette(ingredients) {
             "ingredients_detailles": [
                 "200g de Riz blanc",
                 "2 filets de Poulet",
-                "1 c.à.s d'Huile d'olive",
-                "1 pincée de Sel",
-                "10cl de Crème liquide"
+                "1 c.à.s d'Huile d'olive"
             ],
             "etapes": [
                 "Couper le poulet en dés...",
@@ -75,9 +85,9 @@ async function genererRecette(ingredients) {
             ]
           }`
         },
-        { role: "user", content: `Voici ce que j'ai : ${ingredients}` }
+        { role: "user", content: userMessage }
       ],
-      temperature: 0.5, // Créativité moyenne pour rester précis sur les quantités
+      temperature: 0.5, 
     });
     
     const reponseBrute = completion.choices[0].message.content;
@@ -92,13 +102,14 @@ async function genererRecette(ingredients) {
 
 // --- ROUTE API ---
 app.post('/api/recette', async (req, res) => {
-  const { ingredients } = req.body;
+  // On récupère maintenant les ingrédients ET l'image potentielle
+  const { ingredients, image } = req.body;
 
-  if (!ingredients) {
-    return res.status(400).json({ error: "Il manque les ingrédients !" });
+  if (!ingredients && !image) {
+    return res.status(400).json({ error: "Il manque les ingrédients ou une photo !" });
   }
 
-  const recette = await genererRecette(ingredients);
+  const recette = await genererRecette(ingredients, image);
 
   if (recette) {
     console.log("✅ Recette envoyée !");
@@ -108,7 +119,6 @@ app.post('/api/recette', async (req, res) => {
   }
 });
 
-// 👇 CHANGEMENT ICI : On utilise le port donné par Render OU 3000
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, '0.0.0.0', () => {
