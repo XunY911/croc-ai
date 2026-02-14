@@ -39,7 +39,7 @@ async function genererRecette(ingredients, imageBase64) {
 
   try {
     // Si on a une image, on utilise le modèle Llama Vision. Sinon on garde ton super modèle texte.
-    const nomDuModele = imageBase64 ? "llama-3.2-11b-vision" : "llama-3.3-70b";
+    const nomDuModele = imageBase64 ? "mistral-31-24b" : "llama-3.3-70b";
 
     // ✨ CHANGEMENT 3 : On prépare le message. Si y'a une image, on la met dans un format spécial.
     let userMessage;
